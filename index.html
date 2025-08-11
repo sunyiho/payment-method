@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>付款工具大冒险</title>
+    <!-- 使用 Font Awesome 获取图标 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <!-- 使用 Tailwind CSS 进行快速响应式布局 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 导入 Inter 字体 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+        /* 确保所有样式都包含在容器内，不影响宿主页面 */
+        #app {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #1e293b;
+        }
+
+        .game-container {
+            max-width: 900px;
+            min-height: 600px;
+            /* 居中显示，并提供响应式外边距 */
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+            /* 确保容器在小屏幕上也能良好显示 */
+            width: 95%; 
+        }
+        
+        /* 成功动画效果：星星下落 */
+        .star {
+            position: absolute;
+            color: gold;
+            font-size: 2em;
+            animation: star-fall 1s forwards;
+            pointer-events: none;
+        }
+        @keyframes star-fall {
+            0% { transform: translateY(-100px) scale(0.5) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(200px) scale(1.5) rotate(360deg); opacity: 0; }
+        }
+        
+        /* 成功消息弹窗动画 */
+        .success-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-size: 1.5em;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            animation: fade-in-out 1.5s forwards;
+        }
+        @keyframes fade-in-out {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        /* 拖拽元素样式 */
+        .drag-item {
+            cursor: grab;
+            transition: transform 0.2s;
+        }
+        .drag-item:active {
+            cursor: grabbing;
+        }
+        .drop-target.active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="p-4 sm:p-8">
+    <div class="game-container">
+        <!-- 游戏主界面 -->
+        <div id="main-menu" class="text-center p-8">
+            <h1 class="text-4xl font-bold text-blue-600 mb-4">付款工具大冒险</h1>
+            <p class="text-lg text-gray-700 mb-12">欢迎来到购物小镇，你需要学习使用各种付款工具来完成交易！</p>
+            <button id="start-game-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-6 px-20 rounded-full shadow-lg transition duration-300 transform hover:scale-105 text-3xl">
+                开始冒险
+            </button>
+        </div>
+
+        <!-- 闯关模式界面 -->
+        <div id="story-mode-screen" class="hidden">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-blue-600" id="story-title"></h2>
+                <p class="text-xl text-gray-700 mt-2" id="story-text"></p>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- 付款工具按钮 -->
+                <button class="payment-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-4 px-4 rounded-xl shadow-md transition duration-300" data-tool="现金">
+                    <i class="fas fa-money-bill-wave fa-2x"></i>
+                    <p class="mt-2">现金</p>
+                </button>
+                <button class="payment-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-4 px-4 rounded-xl shadow-md transition duration-300" data-tool="支票">
+                    <i class="fas fa-file-invoice fa-2x"></i>
+                    <p class="mt-2">支票</p>
+                </button>
+                <button class="payment-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-4 px-4 rounded-xl shadow-md transition duration-300" data-tool="借记卡">
+                    <i class="fas fa-credit-card fa-2x"></i>
+                    <p class="mt-2">借记卡</p>
+                </button>
+                <button class="payment-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-4 px-4 rounded-xl shadow-md transition duration-300" data-tool="信用卡">
+                    <i class="fas fa-wallet fa-2x"></i>
+                    <p class="mt-2">信用卡</p>
+                </button>
+                <button class="payment-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-4 px-4 rounded-xl shadow-md transition duration-300" data-tool="邮政汇票">
+                    <i class="fas fa-mail-bulk fa-2x"></i>
+                    <p class="mt-2">邮政汇票</p>
+                </button>
+                <button class="payment-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-4 px-4 rounded-xl shadow-md transition duration-300" data-tool="在线支付">
+                    <i class="fas fa-globe fa-2x"></i>
+                    <p class="mt-2">在线支付</p>
+                </button>
+                <button class="payment-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-4 px-4 rounded-xl shadow-md transition duration-300" data-tool="电子钱包">
+                    <i class="fas fa-mobile-alt fa-2x"></i>
+                    <p class="mt-2">电子钱包</p>
+                </button>
+                <button class="payment-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-4 px-4 rounded-xl shadow-md transition duration-300" data-tool="预付卡">
+                    <i class="fas fa-gift-card fa-2x"></i>
+                    <p class="mt-2">预付卡</p>
+                </button>
+            </div>
+            <div id="error-message" class="text-red-500 mt-4 font-bold hidden"></div>
+            <div class="mt-8 text-center">
+                <p id="success-message-text" class="text-green-500 font-bold text-lg hidden mb-2">叮~付款成功！</p>
+                <button id="next-level-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full transition duration-300 hidden">下一关</button>
+            </div>
+        </div>
+
+        <!-- 配对模式界面 -->
+        <div id="match-game-screen" class="hidden">
+            <h2 class="text-3xl font-bold text-blue-600 text-center mb-8">配对小游戏</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div id="descriptions-container" class="space-y-4">
+                    <!-- 描述会在这里动态生成 -->
+                </div>
+                <div id="names-container" class="space-y-4">
+                    <!-- 名称会在这里动态生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 成就界面 -->
+        <div id="achievement-screen" class="hidden text-center">
+            <h2 class="text-3xl font-bold text-yellow-500 mb-4">恭喜你，付款小达人！</h2>
+            <p class="text-lg text-gray-700">你已经掌握了所有付款工具的用法！</p>
+            <button id="restart-game-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-12 rounded-full shadow-lg transition duration-300 transform hover:scale-105 mt-8 text-xl">
+                重新开始
+            </button>
+        </div>
+
+        <!-- 消息弹窗 -->
+        <div id="message-box" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+            <div class="bg-white p-8 rounded-xl shadow-lg text-center">
+                <p id="message-text" class="text-2xl font-bold mb-4"></p>
+                <button id="close-message-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full transition duration-300">确定</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 游戏状态和数据
+        let currentLevel = 0;
+        let score = 0;
+        const totalTools = 8;
+        let matchedPairs = 0;
+
+        const paymentTools = {
+            "现金": {
+                description: "最基本的付款工具",
+                scene: "你来到水果店，老板说‘只收最基本的付款工具’",
+                error: "现金是我们最基本的付款工具，没有银行卡也能用。"
+            },
+            "支票": {
+                description: "向银行支取或转移存款的票据",
+                scene: "你去银行办业务，需要用一张票据从自己的账户里取钱",
+                error: "支票是一种特殊的票据，需要去银行办理。"
+            },
+            "借记卡": {
+                description: "使用这张卡时，消费金额会直接从户头存款扣除",
+                scene: "你在文具店看中了一支笔，刷卡时钱会直接从你的银行账户里扣除",
+                error: "借记卡里的钱就是你自己的存款，用多少扣多少。"
+            },
+            "信用卡": {
+                description: "持卡人可先消费后还款",
+                scene: "你在玩具店买了一件很贵的玩具，想先拿回家，下个月再付钱",
+                error: "信用卡可以先买东西，后还钱，但要按时还哦，不然会有麻烦。"
+            },
+            "邮政汇票": {
+                description: "在邮政局汇款给某人的票据",
+                scene: "你需要通过邮局给住在另一个城市的朋友寄一笔钱",
+                error: "邮政汇票是专门用来在邮局寄钱的工具。"
+            },
+            "在线支付": {
+                description: "在网上进行金钱交易",
+                scene: "你上网买了一本书，需要通过网络完成交易",
+                error: "在线支付是专门为网上购物设计的付款方式。"
+            },
+            "电子钱包": {
+                description: "用手机里的应用程序扫描二维码即可完成交易",
+                scene: "你在奶茶店买了一杯奶茶，用手机扫一下二维码就付了款",
+                error: "电子钱包就像一个存在手机里的虚拟钱包，扫码就能付款。"
+            },
+            "预付卡": {
+                description: "持卡人必须先为卡加额，然后才能使用卡来消费",
+                scene: "你想去游戏厅玩游戏，需要先在卡里充值才能玩",
+                error: "预付卡需要先存钱进去才能使用，就像公交卡一样。"
+            }
+        };
+
+        const paymentToolsArray = Object.keys(paymentTools);
+        const shuffledPaymentTools = shuffleArray(paymentToolsArray);
+
+        // 获取DOM元素
+        const app = document.getElementById('app');
+        const mainMenu = document.getElementById('main-menu');
+        const storyModeScreen = document.getElementById('story-mode-screen');
+        const matchGameScreen = document.getElementById('match-game-screen');
+        const achievementScreen = document.getElementById('achievement-screen');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const storyTitle = document.getElementById('story-title');
+        const storyText = document.getElementById('story-text');
+        const paymentBtns = document.querySelectorAll('.payment-btn');
+        const errorMessage = document.getElementById('error-message');
+        const successMessageText = document.getElementById('success-message-text');
+        const nextLevelBtn = document.getElementById('next-level-btn');
+        const descriptionsContainer = document.getElementById('descriptions-container');
+        const namesContainer = document.getElementById('names-container');
+        const restartGameBtn = document.getElementById('restart-game-btn');
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+        const closeMessageBtn = document.getElementById('close-message-btn');
+
+        // 随机打乱数组
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 显示消息弹窗
+        function showMessage(text) {
+            messageText.textContent = text;
+            messageBox.classList.remove('hidden');
+        }
+
+        // 隐藏消息弹窗
+        function hideMessage() {
+            messageBox.classList.add('hidden');
+        }
+
+        // 闯关模式游戏逻辑
+        function startStoryMode() {
+            mainMenu.classList.add('hidden');
+            storyModeScreen.classList.remove('hidden');
+            nextLevel();
+        }
+
+        function nextLevel() {
+            if (currentLevel < shuffledPaymentTools.length) {
+                const toolName = shuffledPaymentTools[currentLevel];
+                const toolData = paymentTools[toolName];
+                // 仅保留关卡号，删除工具名称
+                storyTitle.textContent = `第 ${currentLevel + 1} 关`;
+                storyText.textContent = toolData.scene;
+                
+                paymentBtns.forEach(btn => {
+                    btn.classList.remove('bg-green-500', 'bg-red-500');
+                    btn.disabled = false;
+                });
+                errorMessage.classList.add('hidden');
+                successMessageText.classList.add('hidden');
+                nextLevelBtn.classList.add('hidden');
+            } else {
+                // 所有关卡完成，进入配对游戏
+                storyModeScreen.classList.add('hidden');
+                startMatchGame();
+            }
+        }
+
+        function handlePaymentChoice(event) {
+            const selectedTool = event.currentTarget.dataset.tool;
+            const correctTool = shuffledPaymentTools[currentLevel];
+
+            paymentBtns.forEach(btn => btn.disabled = true);
+
+            if (selectedTool === correctTool) {
+                event.currentTarget.classList.add('bg-green-500', 'text-white');
+                showSuccessAnimation(event.clientX, event.clientY);
+                successMessageText.classList.remove('hidden');
+                score++;
+                currentLevel++;
+                nextLevelBtn.classList.remove('hidden');
+            } else {
+                event.currentTarget.classList.add('bg-red-500', 'text-white');
+                const toolData = paymentTools[correctTool];
+                errorMessage.textContent = `选择错误！正确答案是【${correctTool}】。提示：${toolData.error}`;
+                errorMessage.classList.remove('hidden');
+                
+                // 找到正确的按钮并高亮显示
+                document.querySelector(`.payment-btn[data-tool="${correctTool}"]`).classList.add('bg-green-500', 'text-white');
+                
+                setTimeout(() => {
+                    paymentBtns.forEach(btn => btn.disabled = false);
+                }, 1500); // 1.5秒后允许重试
+            }
+        }
+
+        // 成功的动画效果
+        function showSuccessAnimation(x, y) {
+            const starCount = 10;
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                star.textContent = '⭐';
+                star.style.left = `${x}px`;
+                star.style.top = `${y}px`;
+                app.appendChild(star);
+                setTimeout(() => star.remove(), 1000);
+            }
+        }
+
+        // 配对模式游戏逻辑
+        function startMatchGame() {
+            storyModeScreen.classList.add('hidden');
+            matchGameScreen.classList.remove('hidden');
+            loadMatchGame();
+        }
+
+        function loadMatchGame() {
+            descriptionsContainer.innerHTML = '';
+            namesContainer.innerHTML = '';
+            matchedPairs = 0;
+
+            // 随机打乱配对游戏的工具列表
+            const toolsForMatching = shuffleArray(paymentToolsArray.slice());
+
+            toolsForMatching.forEach(toolName => {
+                const toolData = paymentTools[toolName];
+                // 创建描述元素
+                const descriptionEl = document.createElement('div');
+                descriptionEl.className = 'bg-white p-4 rounded-xl shadow-md cursor-pointer drop-target transition duration-200';
+                descriptionEl.textContent = toolData.description;
+                descriptionEl.dataset.target = toolName;
+                descriptionsContainer.appendChild(descriptionEl);
+
+                // 创建名称元素
+                const nameEl = document.createElement('div');
+                nameEl.className = 'bg-blue-200 p-4 rounded-xl shadow-md drag-item transition duration-200';
+                nameEl.textContent = toolName;
+                nameEl.dataset.tool = toolName;
+                nameEl.draggable = true;
+                namesContainer.appendChild(nameEl);
+            });
+
+            addDragAndDropListeners();
+        }
+
+        function addDragAndDropListeners() {
+            let draggedItem = null;
+
+            document.querySelectorAll('.drag-item').forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedItem = item;
+                    setTimeout(() => item.style.opacity = '0.5', 0);
+                });
+                item.addEventListener('dragend', () => {
+                    draggedItem = null;
+                    item.style.opacity = '1';
+                });
+            });
+
+            document.querySelectorAll('.drop-target').forEach(target => {
+                target.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    target.classList.add('active');
+                });
+                target.addEventListener('dragleave', () => {
+                    target.classList.remove('active');
+                });
+                target.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    target.classList.remove('active');
+
+                    if (draggedItem) {
+                        const descriptionTarget = target.dataset.target;
+                        const draggedTool = draggedItem.dataset.tool;
+
+                        if (descriptionTarget === draggedTool) {
+                            // 配对成功
+                            target.classList.remove('bg-white');
+                            target.classList.add('bg-green-400', 'text-white');
+                            draggedItem.remove();
+                            target.textContent = `${paymentTools[draggedTool].description} - ${draggedTool}`;
+                            target.style.cursor = 'default';
+                            target.removeAttribute('data-target');
+                            
+                            matchedPairs++;
+                            checkMatchGameCompletion();
+                        } else {
+                            // 配对失败
+                            showMessage("配对错误，请再试一次！");
+                        }
+                    }
+                });
+            });
+        }
+
+        function checkMatchGameCompletion() {
+            if (matchedPairs === totalTools) {
+                matchGameScreen.classList.add('hidden');
+                achievementScreen.classList.remove('hidden');
+            }
+        }
+
+        // 重启游戏
+        function restartGame() {
+            achievementScreen.classList.add('hidden');
+            mainMenu.classList.remove('hidden');
+            currentLevel = 0;
+            score = 0;
+            matchedPairs = 0;
+            shuffleArray(shuffledPaymentTools);
+        }
+
+        // 事件监听
+        startGameBtn.addEventListener('click', startStoryMode);
+        paymentBtns.forEach(btn => btn.addEventListener('click', handlePaymentChoice));
+        nextLevelBtn.addEventListener('click', nextLevel);
+        restartGameBtn.addEventListener('click', restartGame);
+        closeMessageBtn.addEventListener('click', hideMessage);
+    });
+</script>
+
+</body>
+</html>
