@@ -139,7 +139,6 @@
             <div id="error-message" class="text-red-500 mt-4 font-bold hidden"></div>
             <div class="mt-8 text-center">
                 <p id="success-message-text" class="text-green-500 font-bold text-lg hidden mb-2">叮~付款成功！</p>
-                <button id="next-level-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full transition duration-300 hidden">下一关</button>
             </div>
         </div>
 
@@ -219,7 +218,7 @@
             "电子钱包": {
                 description: "用手机里的应用程序扫描二维码即可完成交易",
                 scene: "你在奶茶店买了一杯奶茶，用手机扫一下二维码就付了款",
-                error: "电子钱包就像一个存在手机里的虚拟钱包，扫码就能付款。"
+                error: "电子钱包就像一个存在在手机里的虚拟钱包，扫码就能付款。"
             },
             "预付卡": {
                 description: "持卡人必须先为卡加额，然后才能使用卡来消费",
@@ -243,7 +242,6 @@
         const paymentBtns = document.querySelectorAll('.payment-btn');
         const errorMessage = document.getElementById('error-message');
         const successMessageText = document.getElementById('success-message-text');
-        const nextLevelBtn = document.getElementById('next-level-btn');
         const descriptionsContainer = document.getElementById('descriptions-container');
         const namesContainer = document.getElementById('names-container');
         const restartGameBtn = document.getElementById('restart-game-btn');
@@ -293,7 +291,6 @@
                 });
                 errorMessage.classList.add('hidden');
                 successMessageText.classList.add('hidden');
-                nextLevelBtn.classList.add('hidden');
             } else {
                 // 所有关卡完成，进入配对游戏
                 storyModeScreen.classList.add('hidden');
@@ -313,18 +310,25 @@
                 successMessageText.classList.remove('hidden');
                 score++;
                 currentLevel++;
-                nextLevelBtn.classList.remove('hidden');
+                // 自动进入下一关
+                setTimeout(() => {
+                    successMessageText.classList.add('hidden');
+                    nextLevel();
+                }, 2000); // 2秒延迟
             } else {
                 event.currentTarget.classList.add('bg-red-500', 'text-white');
-                const toolData = paymentTools[correctTool];
-                errorMessage.textContent = `选择错误！正确答案是【${correctTool}】。提示：${toolData.error}`;
+                errorMessage.textContent = `选择错误！请再试一次。`;
                 errorMessage.classList.remove('hidden');
                 
-                // 找到正确的按钮并高亮显示
-                document.querySelector(`.payment-btn[data-tool="${correctTool}"]`).classList.add('bg-green-500', 'text-white');
-                
                 setTimeout(() => {
-                    paymentBtns.forEach(btn => btn.disabled = false);
+                    paymentBtns.forEach(btn => {
+                        // 修复：确保只移除红色样式，不影响绿色样式
+                        if (btn.dataset.tool !== correctTool) {
+                             btn.classList.remove('bg-red-500', 'text-white');
+                        }
+                        btn.disabled = false;
+                    });
+                    errorMessage.classList.add('hidden'); // 隐藏错误信息
                 }, 1500); // 1.5秒后允许重试
             }
         }
@@ -455,7 +459,6 @@
         // 事件监听
         startGameBtn.addEventListener('click', startStoryMode);
         paymentBtns.forEach(btn => btn.addEventListener('click', handlePaymentChoice));
-        nextLevelBtn.addEventListener('click', nextLevel);
         restartGameBtn.addEventListener('click', restartGame);
         closeMessageBtn.addEventListener('click', hideMessage);
     });
