@@ -89,7 +89,7 @@
         <!-- 游戏主界面 -->
         <div id="main-menu" class="text-center p-8">
             <h1 class="text-4xl font-bold text-blue-600 mb-4">付款工具大冒险</h1>
-            <p class="text-lg text-gray-700 mb-12">欢迎来到购物小镇，你需要学习使用各种付款工具来完成交易！</p>
+            <p class="text-lg text-gray-700 mb-24">欢迎来到购物小镇，你需要学习使用各种付款工具来完成交易！</p>
             <button id="start-game-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-6 px-20 rounded-full shadow-lg transition duration-300 transform hover:scale-105 text-3xl">
                 开始冒险
             </button>
@@ -157,10 +157,12 @@
         </div>
 
         <!-- 成就界面 -->
-        <div id="achievement-screen" class="hidden text-center">
-            <h2 class="text-3xl font-bold text-yellow-500 mb-4">恭喜你，付款小达人！</h2>
-            <p class="text-lg text-gray-700">你已经掌握了所有付款工具的用法！</p>
-            <button id="restart-game-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-12 rounded-full shadow-lg transition duration-300 transform hover:scale-105 mt-8 text-xl">
+        <div id="achievement-screen" class="hidden text-center p-8 flex flex-col justify-end h-full">
+            <div>
+                <h2 class="text-3xl font-bold text-yellow-500 mb-4">恭喜你，付款小达人！</h2>
+                <p class="text-lg text-gray-700">你已经掌握了所有付款工具的用法！</p>
+            </div>
+            <button id="restart-game-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-6 px-16 rounded-full shadow-lg transition duration-300 transform hover:scale-105 text-2xl mt-24">
                 重新开始
             </button>
         </div>
@@ -285,7 +287,8 @@
                 storyText.textContent = toolData.scene;
                 
                 paymentBtns.forEach(btn => {
-                    btn.classList.remove('bg-green-500', 'bg-red-500');
+                    // 修复：确保移除所有状态相关的类，包括文本颜色
+                    btn.classList.remove('bg-green-500', 'bg-red-500', 'text-white');
                     btn.disabled = false;
                 });
                 errorMessage.classList.add('hidden');
@@ -351,9 +354,15 @@
             descriptionsContainer.innerHTML = '';
             namesContainer.innerHTML = '';
             matchedPairs = 0;
+            
+            // 随机抽取5个工具进行配对游戏
+            const allTools = Object.keys(paymentTools);
+            const shuffledAllTools = shuffleArray(allTools);
+            const toolsForMatching = shuffledAllTools.slice(0, 5);
 
-            // 随机打乱配对游戏的工具列表
-            const toolsForMatching = shuffleArray(paymentToolsArray.slice());
+            // 随机打乱描述和名称的顺序
+            const shuffledDescriptions = shuffleArray(toolsForMatching.map(tool => paymentTools[tool].description));
+            const shuffledNames = shuffleArray(toolsForMatching.slice());
 
             toolsForMatching.forEach(toolName => {
                 const toolData = paymentTools[toolName];
@@ -427,7 +436,7 @@
         }
 
         function checkMatchGameCompletion() {
-            if (matchedPairs === totalTools) {
+            if (matchedPairs === 5) {
                 matchGameScreen.classList.add('hidden');
                 achievementScreen.classList.remove('hidden');
             }
