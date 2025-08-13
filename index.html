@@ -71,7 +71,8 @@
         /* 拖拽元素样式 */
         .drag-item {
             cursor: grab;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            touch-action: none; /* 防止移动端默认滚动行为 */
         }
         .drag-item:active {
             cursor: grabbing;
@@ -183,6 +184,10 @@
         let score = 0;
         const totalTools = 8;
         let matchedPairs = 0;
+        let draggedItem = null; // 用于存储当前拖拽或触摸的元素
+        let originalX = 0;
+        let originalY = 0;
+        let originalZIndex = '';
 
         const paymentTools = {
             "现金": {
@@ -361,21 +366,21 @@
             
             // 随机抽取5个工具进行配对游戏
             const allTools = Object.keys(paymentTools);
-            const shuffledAllTools = shuffleArray(allTools);
-            const toolsForMatching = shuffledAllTools.slice(0, 5);
+            const toolsForMatching = shuffleArray(allTools).slice(0, 5);
 
-            // 随机打乱描述和名称的顺序
-            const shuffledDescriptions = shuffleArray(toolsForMatching.map(tool => paymentTools[tool].description));
-            const shuffledNames = shuffleArray(toolsForMatching.slice());
+            // 创建描述和名称的元素数组
+            const descriptionElements = [];
+            const nameElements = [];
 
             toolsForMatching.forEach(toolName => {
                 const toolData = paymentTools[toolName];
-                // 创建描述元素
+                
+                // 创建描述元素，并保存对应的正确答案
                 const descriptionEl = document.createElement('div');
                 descriptionEl.className = 'bg-white p-4 rounded-xl shadow-md cursor-pointer drop-target transition duration-200';
                 descriptionEl.textContent = toolData.description;
-                descriptionEl.dataset.target = toolName;
-                descriptionsContainer.appendChild(descriptionEl);
+                descriptionEl.dataset.target = toolName; // 将正确的工具名保存在 data 属性中
+                descriptionElements.push(descriptionEl);
 
                 // 创建名称元素
                 const nameEl = document.createElement('div');
@@ -383,15 +388,49 @@
                 nameEl.textContent = toolName;
                 nameEl.dataset.tool = toolName;
                 nameEl.draggable = true;
-                namesContainer.appendChild(nameEl);
+                nameElements.push(nameEl);
             });
+
+            // 独立打乱两个数组
+            shuffleArray(descriptionElements);
+            shuffleArray(nameElements);
+
+            // 将打乱后的元素添加到 DOM 中
+            descriptionElements.forEach(el => descriptionsContainer.appendChild(el));
+            nameElements.forEach(el => namesContainer.appendChild(el));
 
             addDragAndDropListeners();
         }
+        
+        // 核心配对逻辑
+        function handleMatch(draggedElement, dropTarget) {
+            const descriptionTarget = dropTarget.dataset.target;
+            const draggedTool = draggedElement.dataset.tool;
+
+            if (descriptionTarget === draggedTool) {
+                // 配对成功
+                dropTarget.classList.remove('bg-white');
+                dropTarget.classList.add('bg-green-400', 'text-white');
+                draggedElement.remove();
+                dropTarget.textContent = `${paymentTools[draggedTool].description} - ${draggedTool}`;
+                dropTarget.style.cursor = 'default';
+                dropTarget.removeAttribute('data-target');
+                dropTarget.classList.remove('active'); // 移除高亮
+                
+                matchedPairs++;
+                checkMatchGameCompletion();
+            } else {
+                // 配对失败
+                showMessage("配对错误，请再试一次！");
+                // 恢复拖拽元素的位置
+                draggedElement.style.transform = `translate(0, 0)`;
+                draggedElement.style.position = 'static';
+                dropTarget.classList.remove('active'); // 移除高亮
+            }
+        }
 
         function addDragAndDropListeners() {
-            let draggedItem = null;
-
+            // 鼠标事件处理
             document.querySelectorAll('.drag-item').forEach(item => {
                 item.addEventListener('dragstart', (e) => {
                     draggedItem = item;
@@ -414,27 +453,63 @@
                 target.addEventListener('drop', (e) => {
                     e.preventDefault();
                     target.classList.remove('active');
-
                     if (draggedItem) {
-                        const descriptionTarget = target.dataset.target;
-                        const draggedTool = draggedItem.dataset.tool;
-
-                        if (descriptionTarget === draggedTool) {
-                            // 配对成功
-                            target.classList.remove('bg-white');
-                            target.classList.add('bg-green-400', 'text-white');
-                            draggedItem.remove();
-                            target.textContent = `${paymentTools[draggedTool].description} - ${draggedTool}`;
-                            target.style.cursor = 'default';
-                            target.removeAttribute('data-target');
-                            
-                            matchedPairs++;
-                            checkMatchGameCompletion();
-                        } else {
-                            // 配对失败
-                            showMessage("配对错误，请再试一次！");
-                        }
+                        handleMatch(draggedItem, target);
                     }
+                });
+            });
+
+            // 触控事件处理
+            document.querySelectorAll('.drag-item').forEach(item => {
+                item.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // 阻止默认的滚动行为
+                    draggedItem = item;
+                    originalX = draggedItem.getBoundingClientRect().left;
+                    originalY = draggedItem.getBoundingClientRect().top;
+                    originalZIndex = draggedItem.style.zIndex;
+                    
+                    draggedItem.style.position = 'absolute';
+                    draggedItem.style.zIndex = 1000;
+                    draggedItem.style.boxShadow = '0 10px 20px rgba(0,0,0,0.2)';
+                });
+
+                item.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    if (!draggedItem) return;
+
+                    const touch = e.touches[0];
+                    const x = touch.clientX - draggedItem.offsetWidth / 2;
+                    const y = touch.clientY - draggedItem.offsetHeight / 2;
+
+                    draggedItem.style.left = `${x}px`;
+                    draggedItem.style.top = `${y}px`;
+
+                    // 高亮正在拖拽的区域
+                    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+                    document.querySelectorAll('.drop-target').forEach(t => t.classList.remove('active'));
+                    if (targetElement && targetElement.classList.contains('drop-target')) {
+                        targetElement.classList.add('active');
+                    }
+                });
+
+                item.addEventListener('touchend', (e) => {
+                    if (!draggedItem) return;
+
+                    const touch = e.changedTouches[0];
+                    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+
+                    // 恢复元素样式
+                    draggedItem.style.zIndex = originalZIndex;
+                    draggedItem.style.boxShadow = '';
+
+                    if (targetElement && targetElement.classList.contains('drop-target')) {
+                        handleMatch(draggedItem, targetElement);
+                    } else {
+                        // 如果没有放置在正确的目标上，则回到原位
+                        draggedItem.style.transform = `translate(0, 0)`;
+                        draggedItem.style.position = 'static';
+                    }
+                    draggedItem = null;
                 });
             });
         }
@@ -466,3 +541,4 @@
 
 </body>
 </html>
+
